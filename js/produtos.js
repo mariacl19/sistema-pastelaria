@@ -1,8 +1,6 @@
 
 const gradeProdutos = document.getElementById("grade-produtos");
 const botaoAdicionar = document.getElementById("adicionar");
-const campoBusca = document.getElementById("busca");
-
 const dialogo = document.getElementById("dialogo-produto");
 const formulario = document.getElementById("form-produto");
 
@@ -11,10 +9,7 @@ const campoNome = document.getElementById("nome-produto");
 const campoPreco = document.getElementById("preco-produto");
 const campoImagem = document.getElementById("imagem-produto");
 
-const botaoFechar = document.getElementById("fechar");
-const botaoCancelar = document.getElementById("cancelar");
-
-// Abre o formulário para cadastrar um produto
+// Abre o formulário
 botaoAdicionar.addEventListener("click", () => {
     formulario.reset();
     campoId.value = "";
@@ -22,15 +17,15 @@ botaoAdicionar.addEventListener("click", () => {
 });
 
 // Fecha o formulário
-botaoFechar.addEventListener("click", () => {
+document.getElementById("fechar").addEventListener("click", () => {
     dialogo.close();
 });
 
-botaoCancelar.addEventListener("click", () => {
+document.getElementById("cancelar").addEventListener("click", () => {
     dialogo.close();
 });
 
-// Transforma a imagem selecionada em um formato que pode ser salvo
+// Lê a imagem selecionada
 function lerImagem(arquivo) {
     return new Promise((resolve, reject) => {
         if (!arquivo) {
@@ -39,76 +34,68 @@ function lerImagem(arquivo) {
         }
 
         if (!arquivo.type.startsWith("image/")) {
-            reject(new Error("Selecione um arquivo de imagem válido."));
+            reject(new Error("Selecione uma imagem válida."));
             return;
         }
 
         const leitor = new FileReader();
 
         leitor.onload = () => resolve(leitor.result);
-        leitor.onerror = () => reject(new Error("Não foi possível ler a imagem."));
+        leitor.onerror = () => reject(new Error("Erro ao carregar imagem."));
 
         leitor.readAsDataURL(arquivo);
     });
 }
 
-// Mostra os produtos na tela
-function mostrarProdutos(lista = obterProdutos()) {
+// Mostra os produtos
+function mostrarProdutos() {
+    const produtos = obterProdutos();
     gradeProdutos.innerHTML = "";
 
-    if (lista.length === 0) {
-        gradeProdutos.innerHTML = "<p>Nenhum produto encontrado.</p>";
+    if (produtos.length === 0) {
+        gradeProdutos.innerHTML = "<p>Nenhum produto cadastrado.</p>";
         return;
     }
 
-    lista.forEach((produto) => {
+    produtos.forEach((produto) => {
         const card = document.createElement("div");
         card.classList.add("produto-card");
 
-        // Imagem do produto
         if (produto.imagem) {
             const imagem = document.createElement("img");
             imagem.src = produto.imagem;
             imagem.alt = produto.nome;
             imagem.classList.add("imagem-produto");
-
             card.appendChild(imagem);
         }
 
-        // Nome do produto
         const nome = document.createElement("h3");
         nome.textContent = produto.nome;
 
-        // Preço do produto
         const preco = document.createElement("p");
         preco.textContent = moeda(Number(produto.preco));
 
-        // Área dos botões
         const acoes = document.createElement("div");
         acoes.classList.add("produto-acoes");
 
-        const botaoEditar = document.createElement("button");
-        botaoEditar.textContent = "Editar";
-        botaoEditar.type = "button";
-        botaoEditar.addEventListener("click", () => editarProduto(produto.id));
+        const editar = document.createElement("button");
+        editar.textContent = "✏️";
+        editar.type = "button";
+        editar.addEventListener("click", () => editarProduto(produto.id));
 
-        const botaoExcluir = document.createElement("button");
-        botaoExcluir.textContent = "Excluir";
-        botaoExcluir.type = "button";
-        botaoExcluir.addEventListener("click", () => excluirProduto(produto.id));
+        const excluir = document.createElement("button");
+        excluir.textContent = "🗑️";
+        excluir.type = "button";
+        excluir.addEventListener("click", () => excluirProduto(produto.id));
 
-        acoes.appendChild(botaoEditar);
-        acoes.appendChild(botaoExcluir);
-
-        card.appendChild(nome);
-        card.appendChild(preco);
-        card.appendChild(acoes);
+        acoes.append(editar, excluir);
+        card.append(nome, preco, acoes);
 
         gradeProdutos.appendChild(card);
     });
 }
 
-// Salva um novo produto ou atualiza um existente
+// Cadastra ou atualiza um produto
 formulario.addEventListener("submit", async (evento) => {
     evento.preventDefault();
 
@@ -123,26 +110,25 @@ formulario.addEventListener("submit", async (evento) => {
     const produtos = obterProdutos();
     const id = campoId.value;
 
-    const produtoExistente = id
-        ? produtos.find((produto) => String(produto.id) === id)
-        : null;
+    const existente = produtos.find(
+        (produto) => String(produto.id) === id
+    );
 
     try {
         const arquivo = campoImagem.files[0];
-        const novaImagem = await lerImagem(arquivo);
+        const imagem = await lerImagem(arquivo);
 
         const produto = {
-            id: produtoExistente ? produtoExistente.id : Date.now(),
+            id: existente ? existente.id : Date.now(),
             nome: nome,
             preco: preco,
-            imagem: novaImagem || (produtoExistente?.imagem || "")
+            imagem: imagem || (existente?.imagem || "")
         };
 
-        if (produtoExistente) {
+        if (existente) {
             const indice = produtos.findIndex(
                 (item) => String(item.id) === id
             );
-
             produtos[indice] = produto;
         } else {
             produtos.push(produto);
@@ -154,16 +140,12 @@ formulario.addEventListener("submit", async (evento) => {
         formulario.reset();
         dialogo.close();
 
-        alert(produtoExistente
-            ? "Produto atualizado com sucesso!"
-            : "Produto cadastrado com sucesso!");
-
     } catch (erro) {
         alert(erro.message);
     }
 });
 
-// Preenche o formulário para editar um produto
+// Edita um produto
 function editarProduto(id) {
     const produtos = obterProdutos();
 
@@ -176,8 +158,6 @@ function editarProduto(id) {
     campoId.value = produto.id;
     campoNome.value = produto.nome;
     campoPreco.value = produto.preco;
-
-    // A imagem antiga será mantida se nenhuma nova for selecionada
     campoImagem.value = "";
 
     dialogo.showModal();
@@ -185,35 +165,17 @@ function editarProduto(id) {
 
 // Exclui um produto
 function excluirProduto(id) {
-    const confirmar = confirm("Deseja realmente excluir este produto?");
-
-    if (!confirmar) return;
+    if (!confirm("Deseja realmente excluir este produto?")) return;
 
     const produtos = obterProdutos();
 
-    const produtosAtualizados = produtos.filter(
+    const atualizados = produtos.filter(
         (produto) => String(produto.id) !== String(id)
     );
 
-    gravarProdutos(produtosAtualizados);
+    gravarProdutos(atualizados);
     mostrarProdutos();
-
-    alert("Produto excluído com sucesso!");
 }
 
-// Pesquisa produtos pelo nome
-campoBusca.addEventListener("input", () => {
-    const pesquisa = campoBusca.value.toLowerCase().trim();
-
-    const produtos = obterProdutos();
-
-    const resultado = produtos.filter((produto) =>
-        produto.nome.toLowerCase().includes(pesquisa)
-    );
-
-    mostrarProdutos(resultado);
-});
-
-// Carrega os produtos ao abrir a página
+// Carrega os produtos
 mostrarProdutos();
-
